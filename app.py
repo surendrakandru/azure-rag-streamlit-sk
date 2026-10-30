@@ -1,8 +1,11 @@
 import hashlib
 
 import streamlit as st
+from src.config import required_setting
+from src.embeddings import get_embedding
 
 from src.document_processing import extract_document, chunk_documents
+from src.search_index import upload_chunks
 
 
 def main():
@@ -72,6 +75,16 @@ def main():
         st.caption("Text extraction only. Diagrams require visual processing.")
 
     st.title("📚 Azure Document Assistant")
+    if st.button("Test embedding connection"):
+        try:
+            vector = get_embedding(
+                "Python is used for data science."
+            )
+            st.success(
+                f"Connection works: {len(vector)} dimensions."
+            )
+        except Exception as error:
+            st.exception(error)
     st.write("Upload documents and inspect their extracted text.")
 
     if process_clicked:
@@ -81,9 +94,14 @@ def main():
         with st.spinner("Extracting document text..."):
             for file in uploaded_files:
                 try:
-                    pages.extend(
-                        extract_document(file.name, file.getvalue())
-                    )
+                    file_bytes = file.getvalue()
+                    document_id = hashlib.sha256(file_bytes).hexdigest()
+                    document_pages = extract_document(file.name, file_bytes)
+                    for page in document_pages:
+                        page["document_id"] = document_id
+                    pages.extend(document_pages)
+
+
                 except Exception as error:
                     # Keep processing other files if one cannot be read.
                     errors.append(
@@ -145,6 +163,34 @@ def main():
     if chunks:
         st.subheader("Document chunks")
         st.write(f"Total chunks created: {len(chunks)}")
+
+        if st.button("Upload chunks to Azure"):
+            try:
+                with st.spinner(
+                    "Generating embeddings and uploading chunks..."
+                ):
+                    api_key = required_setting("AZURE_OPENAI_API_KEY")
+                    fingerprint = hashlib.sha256(api_key.encode()).hexdigest()[:12]
+                    st.write("Key fingerprint:", fingerprint)
+                    st.write("Endpoint:", required_setting("AZURE_OPENAI_ENDPOINT"))
+                    st.write(
+                        "Deployment:",
+                        repr(required_setting("AZURE_OPENAI_EMBEDDING_DEPLOYMENT")),
+                    )
+                    uploaded_count = upload_chunks(chunks)
+
+                st.success(
+                    f"Azure accepted {uploaded_count} chunk records."
+                )
+
+            except Exception as error:
+                st.exception(error)
+                # st.error(
+                #     "Upload did not complete. Earlier batches may "
+                #     "already be stored. Retrying with the same chunks "
+                #     "uses the same record IDs."
+                # )
+                # st.error(f"{type(error).__name__}: {error}")
 
         with st.expander("Preview chunks"):
             chunk_index = st.selectbox(

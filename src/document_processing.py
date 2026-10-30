@@ -75,12 +75,15 @@ def chunk_documents(
             content = " ".join(words[start:end])
 
             chunks.append({
+                "document_id": page["document_id"],
                 "source": page["source"],
                 "page_number": page["page_number"],
                 "chunk_number": chunk_number,
                 "content": content,
                 "word_count": end - start,
-            })
+        })
+
+
 
             chunk_number += 1
 
