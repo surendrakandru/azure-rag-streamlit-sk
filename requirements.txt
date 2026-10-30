@@ -1,0 +1,26 @@
+# Web application
+streamlit
+
+# Azure OpenAI: embeddings and answer generation
+openai
+
+# Azure AI Search: indexing and retrieval
+azure-search-documents
+
+# Azure Blob Storage: document storage
+azure-storage-blob
+
+# Azure authentication
+azure-identity
+
+# Load local configuration from .env
+python-dotenv
+
+# Extract text from PDFs
+pypdf
+
+# Count tokens for document chunking
+tiktoken
+
+# Run Jupyter notebooks using this environment in VS Code
+ipykernel

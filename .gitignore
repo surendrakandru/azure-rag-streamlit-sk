@@ -1,0 +1,23 @@
+# Local notes and materials
+/RAG_AZURE_SIMPLE_NOTES/
+/Materials/
+/ROUGH/
+
+
+# Conda environment
+sras_venv_312/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Credentials
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# Local documents
+data/
+uploads/
+
