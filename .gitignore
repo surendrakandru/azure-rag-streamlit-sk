@@ -17,6 +17,7 @@ __pycache__/
 .env.*
 !.env.example
 .streamlit/secrets.toml
+.streamlit/secrets.toml
 
 # Local documents
 data/
