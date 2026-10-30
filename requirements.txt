@@ -1,26 +1,23 @@
 # Web application
-streamlit
+streamlit==1.66.1
 
-# Azure OpenAI: embeddings and answer generation
-openai
+# Azure OpenAI
+openai==3.41.0
 
-# Azure AI Search: indexing and retrieval
-azure-search-documents
+# Azure AI Search
+azure-search-documents==12.0.0
 
-# Azure Blob Storage: document storage
-azure-storage-blob
+# Azure Blob Storage
+azure-storage-blob==12.31.1
 
 # Azure authentication
-azure-identity
+azure-identity==1.27.0
 
-# Load local configuration from .env
-python-dotenv
+# Local environment settings
+python-dotenv==1.2.4
 
-# Extract text from PDFs
-pypdf
+# PDF text extraction
+pypdf==6.21.4
 
-# Count tokens for document chunking
-tiktoken
-
-# Run Jupyter notebooks using this environment in VS Code
-ipykernel
+# Token counting
+tiktoken==0.14.0
