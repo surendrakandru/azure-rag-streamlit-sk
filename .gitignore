@@ -17,7 +17,8 @@ __pycache__/
 .env.*
 !.env.example
 .streamlit/secrets.toml
-.streamlit/config.toml
+/.agents/
+
 
 /.vscode/
 
