@@ -27,7 +27,8 @@ def main():
         try:
             vector = get_embedding(chunk["content"])
             print(f"Success: {len(vector)} dimensions.")
-        clrexcept Exception as error:
+        except Exception as error:
+
             print(f"Failed: {type(error).__name__}: {error}")
 
             probes = [
