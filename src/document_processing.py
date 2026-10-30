@@ -45,3 +45,47 @@ def extract_document(file_name: str, file_bytes: bytes) -> list[dict]:
         }]
 
     raise ValueError("Only PDF and TXT files are supported.")
+
+
+def chunk_documents(
+    pages: list[dict],
+    chunk_size: int = 200,
+    overlap: int = 40,
+) -> list[dict]:
+    """Split each page into overlapping word-based chunks."""
+    if chunk_size <= 0:
+        raise ValueError("chunk_size must be greater than zero.")
+
+    if not 0 <= overlap < chunk_size:
+        raise ValueError("overlap must be between zero and chunk_size - 1.")
+
+    chunks = []
+    step = chunk_size - overlap
+
+    for page in pages:
+        words = page["text"].split()
+
+        if not words:
+            continue
+
+        chunk_number = 1
+
+        for start in range(0, len(words), step):
+            end = min(start + chunk_size, len(words))
+            content = " ".join(words[start:end])
+
+            chunks.append({
+                "source": page["source"],
+                "page_number": page["page_number"],
+                "chunk_number": chunk_number,
+                "content": content,
+                "word_count": end - start,
+            })
+
+            chunk_number += 1
+
+            # Stop once the page has been fully covered.
+            if end == len(words):
+                break
+
+    return chunks

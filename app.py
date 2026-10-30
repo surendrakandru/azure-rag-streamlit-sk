@@ -2,7 +2,7 @@ import hashlib
 
 import streamlit as st
 
-from src.document_processing import extract_document
+from src.document_processing import extract_document, chunk_documents
 
 
 def main():
@@ -25,6 +25,9 @@ def main():
     if "selection_signature" not in st.session_state:
         st.session_state.selection_signature = None
 
+    if "chunks" not in st.session_state:
+        st.session_state.chunks = []
+
     with st.sidebar:
         st.header("📄 Your documents")
 
@@ -46,9 +49,11 @@ def main():
         # Clear old results when the selected documents change.
         if signature != st.session_state.selection_signature:
             st.session_state.pages = []
+            st.session_state.chunks = []
             st.session_state.processing_errors = []
             st.session_state.messages = []
             st.session_state.selection_signature = signature
+            
 
         for file in uploaded_files:
             st.write(f"📄 {file.name} ({file.size / 1024:.1f} KB)")
@@ -87,6 +92,11 @@ def main():
                     )
 
         st.session_state.pages = pages
+        st.session_state.chunks = chunk_documents(
+            pages,
+            chunk_size=200,
+            overlap=40,
+        )
         st.session_state.processing_errors = errors
         st.session_state.messages = []
 
@@ -129,6 +139,30 @@ def main():
                 "No text was extracted. Try a PDF with selectable text "
                 "or a UTF-8 text file."
             )
+
+    chunks = st.session_state.chunks
+
+    if chunks:
+        st.subheader("Document chunks")
+        st.write(f"Total chunks created: {len(chunks)}")
+
+        with st.expander("Preview chunks"):
+            chunk_index = st.selectbox(
+                "Choose a chunk",
+                options=range(len(chunks)),
+                format_func=lambda index: (
+                    f"{index + 1}: {chunks[index]['source']} — "
+                    f"Page {chunks[index]['page_number']} — "
+                    f"Chunk {chunks[index]['chunk_number']}"
+                ),
+            )
+
+            selected_chunk = chunks[chunk_index]
+
+            st.write(f"Words: {selected_chunk['word_count']}")
+            st.text(selected_chunk["content"])
+
+
 
     st.divider()
     st.subheader("Ask a question")
