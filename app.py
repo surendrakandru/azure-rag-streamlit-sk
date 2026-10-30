@@ -2,9 +2,10 @@ import hashlib
 
 import streamlit as st
 
+from src.blob_storage import upload_original_document
 from src.document_processing import extract_document, chunk_documents
-from src.search_index import upload_chunks
 from src.rag_pipeline import answer_question
+from src.search_index import upload_chunks
 
 
 def source_label(record: dict) -> str:
@@ -57,7 +58,6 @@ def main():
         if key not in st.session_state:
             st.session_state[key] = value
 
-    # Sidebar: select documents and start local processing.
     with st.sidebar:
         st.header("📄 Your documents")
 
@@ -67,6 +67,7 @@ def main():
             accept_multiple_files=True,
         )
 
+        # Detect changes to the selected files.
         signature = tuple(
             (
                 file.name,
@@ -76,7 +77,7 @@ def main():
         )
 
         # Reset local previews when the selection changes.
-        # Previously indexed documents in Azure are unaffected.
+        # Files and records already stored in Azure are unaffected.
         if signature != st.session_state.selection_signature:
             st.session_state.pages = []
             st.session_state.chunks = []
@@ -96,7 +97,8 @@ def main():
 
         st.caption(
             "Processing extracts text and creates local chunks. "
-            "Use Upload chunks to Azure to index them."
+            "Use Save documents and index in Azure to save "
+            "the originals and index their chunks."
         )
 
         st.divider()
@@ -116,11 +118,11 @@ def main():
 
     st.title("📚 Azure Document Assistant")
     st.write(
-        "Upload documents and ask questions about their contents. "
-        "Answers include references to retrieved document passages."
+        "Upload documents, save them in Azure, and ask questions "
+        "about their contents. Answers include document references."
     )
 
-    # Extract document text and generate local chunks.
+    # Extract text and create chunks.
     if process_clicked:
         pages = []
         chunks = []
@@ -135,8 +137,7 @@ def main():
                         file_bytes
                     ).hexdigest()
 
-                    # Process identical file contents only once
-                    # within this selection.
+                    # Process identical contents once per selection.
                     if document_id in seen_document_ids:
                         continue
 
@@ -172,7 +173,7 @@ def main():
     for error in st.session_state.processing_errors:
         st.error(error)
 
-    # Preview extracted pages.
+    # Preview extracted text.
     pages = st.session_state.pages
 
     if pages:
@@ -210,31 +211,71 @@ def main():
                 "text or a UTF-8 text file."
             )
 
-    # Preview and upload chunks.
     chunks = st.session_state.chunks
 
     if chunks:
         st.subheader("Document chunks")
         st.write(f"Total chunks created: {len(chunks)}")
 
-        if st.button("Upload chunks to Azure"):
+        # Save originals to Blob Storage, then index the chunks.
+        if st.button("Save documents and index in Azure"):
             st.session_state.upload_message = None
 
             try:
+                indexable_document_ids = {
+                    chunk["document_id"]
+                    for chunk in chunks
+                }
+
+                saved_count = 0
+                existing_count = 0
+                seen_document_ids = set()
+
+                with st.spinner("Saving original documents..."):
+                    for file in uploaded_files:
+                        file_bytes = file.getvalue()
+                        document_id = hashlib.sha256(
+                            file_bytes
+                        ).hexdigest()
+
+                        # Save only files that produced chunks,
+                        # and handle identical contents once.
+                        if (
+                            document_id not in indexable_document_ids
+                            or document_id in seen_document_ids
+                        ):
+                            continue
+
+                        result = upload_original_document(
+                            file.name,
+                            file_bytes,
+                        )
+
+                        if result["created"]:
+                            saved_count += 1
+                        else:
+                            existing_count += 1
+
+                        seen_document_ids.add(document_id)
+
                 with st.spinner(
-                    "Generating embeddings and uploading chunks..."
+                    "Generating embeddings and indexing chunks..."
                 ):
                     uploaded_count = upload_chunks(chunks)
 
                 st.session_state.upload_message = (
-                    f"Azure accepted {uploaded_count} chunk records."
+                    f"Original files: {saved_count} newly saved, "
+                    f"{existing_count} already stored. "
+                    f"Azure AI Search accepted "
+                    f"{uploaded_count} chunk records."
                 )
 
             except Exception as error:
                 st.error(
-                    "Upload did not complete. Earlier batches may "
-                    "already be stored. Retrying unchanged chunks "
-                    "uses the same record IDs."
+                    "The operation did not complete. Some original "
+                    "files or chunk records may already be stored. "
+                    "Retrying unchanged files uses the same blob "
+                    "names and chunk record IDs."
                 )
                 st.exception(error)
 
@@ -258,7 +299,7 @@ def main():
             )
             st.text(selected_chunk["content"])
 
-    # Retrieve relevant passages and generate an AI answer.
+    # Retrieve passages and generate an answer.
     st.divider()
     st.subheader("Ask your documents")
 
